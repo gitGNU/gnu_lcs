@@ -1,0 +1,7 @@
+[package]
+name = "LCS"
+version = "0.1.0"
+authors = ["gianmarco"]
+
+[dependencies]
+serial = "0.3.4"
