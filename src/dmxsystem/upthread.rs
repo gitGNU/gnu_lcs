@@ -53,12 +53,14 @@ impl Updater{
                        loop {
                            match self.ch.recv().unwrap() {
                                Msg::Go =>
-                                   for ChVal(ch, val) in self.devs.iter()
-                                   .map(|lock| lock.read().unwrap())
-                                   .filter(|d| d.is_changed())
-                                   .flat_map(|d| d.changed_ch_vals()) {
-                                       //send couple to microcontroller
-                                       write!(&mut port, "{}c{}v", ch, val);
+                                   for mut dev in self.devs.iter()
+                                   .map(|lock| lock.write().unwrap())
+                                   .filter(|d| d.is_changed()) {
+                                       for ChVal(ch, val) in dev.changed_ch_vals(){
+                                           //send couple to microcontroller
+                                           write!(&mut port, "{}c{}v", ch, val);
+                                       }
+                                       dev.updated();
                                    },
                                Msg::Stop => break
                            }

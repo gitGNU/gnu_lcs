@@ -57,10 +57,12 @@ impl<'a> SimpleLight{
         self.needs_update
     }
     
-    pub fn changed_ch_vals(&'a mut self) -> FilterMap<Iter<'a, Arc<Mutex<Channel>>>, fn(&Arc<Mutex<Channel>>) -> Option<ChVal>> {
-        self.needs_update = false;
+    pub fn changed_ch_vals(&'a self) -> FilterMap<Iter<'a, Arc<Mutex<Channel>>>, fn(&Arc<Mutex<Channel>>) -> Option<ChVal>> {
         self.channels.iter()
             .filter_map(ch_val as _)
+    }
+    pub fn updated(&'a mut self){
+        self.needs_update = false;
     }
 }
 
