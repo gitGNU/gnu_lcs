@@ -57,20 +57,20 @@ impl<'a> SimpleLight{
         self.needs_update
     }
     
-    pub fn changed_ch_vals(&'a mut self) -> Map<Filter<Map<Iter<'a, Arc<Mutex<Channel>>>, fn(&Arc<Mutex<Channel>>) -> &Channel>, fn(&&Channel)->bool>, fn(&Channel)->ChVal> {
+    pub fn changed_ch_vals(&'a mut self) -> FilterMap<Iter<'a, Arc<Mutex<Channel>>>, fn(&Arc<Mutex<Channel>>) -> Option<ChVal>> {
         self.needs_update = false;
         self.channels.iter()
-            .map(arc_to_channel as _)
-            .filter(ch_is_changed_adapter as _)
-            .map(Channel::get_ch_val)
+            .filter_map(ch_val as _)
     }
 }
 
-fn arc_to_channel(r: &Arc<Mutex<Channel>>) -> &Channel{
-    r.lock().unwrap().deref()
-}
-fn ch_is_changed_adapter(r: &&Channel) -> bool{
-    (*r).is_changed()
+fn ch_val(r: &Arc<Mutex<Channel>>) -> Option<ChVal>{
+    let ch = r.lock().unwrap();
+    if ch.is_changed(){
+        Some(ch.get_ch_val())
+    } else {
+        None
+    }
 }
 
 pub struct RGBLight {
