@@ -1,5 +1,4 @@
-/*
-Copyright 2017 Gianmarco Garrisi
+/* Copyright 2017 Gianmarco Garrisi
 
 This file is part of LCS.
 

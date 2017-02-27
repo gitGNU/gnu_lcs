@@ -22,7 +22,7 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 //TODO: use Arc!
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::mpsc::Sender;
-use std::sync::{mpsc, RwLock, Arc};
+use std::sync::{mpsc, Mutex, Arc};
 use std::thread;
 use std::thread::JoinHandle;
 use std::fs::File;
@@ -37,7 +37,7 @@ use dmxsystem::devs::*;
 use dmxsystem::upthread::{Updater, Msg};
 
 pub struct Universe {
-    lights:  BTreeMap<String, Arc<RwLock<SimpleLight>>>,
+    lights:  BTreeMap<String, Arc<SimpleLight>>,
     rgbs:    HashMap<String, RGBLight>,
     dimmers: HashMap<String, Dimmer>,
     updater: Option<(JoinHandle<()>, Sender<Msg>)>,
@@ -81,8 +81,10 @@ impl Universe{
         }
     }
 
-    fn add_light(&mut self, name: String, first_ch: u16){
-        self.lights.insert(name.clone(), Arc::new(RwLock::new(SimpleLight::new(name, first_ch))));
+    fn add_light(&mut self, name: String, first_ch: u16) -> Arc<SimpleLight>{
+        let new_light = Arc::new(SimpleLight::new(name.clone(), first_ch));
+        self.lights.insert(name, new_light.clone());
+        new_light
     }
     fn add_dimmer(&mut self, name: String, dimmer_ch: u16){
         self.dimmers.insert(name.clone(), Dimmer::new(self.lights.get(&name).unwrap().clone(), dimmer_ch)); //add error checking

@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::thread;
 use std::io::Write;
@@ -31,7 +31,7 @@ use dmxsystem::devs::*;
 use dmxsystem::channel::ChVal;
 
 pub struct Updater{
-    devs: Vec<Arc<RwLock<SimpleLight>>>,
+    devs: Vec<Arc<SimpleLight>>,
     ch: Receiver<Msg>,
     // data for microcontroller communication
     settings: TTYSettings
@@ -43,7 +43,7 @@ pub enum Msg {
 }
 
 impl Updater{
-    pub fn set(devs: Vec<Arc<RwLock<SimpleLight>>>, ch: Receiver<Msg>, settings: TTYSettings) -> Updater{
+    pub fn set(devs: Vec<Arc<SimpleLight>>, ch: Receiver<Msg>, settings: TTYSettings) -> Updater{
         Updater{devs: devs, ch:ch, settings: settings}
     }
     pub fn start(self) -> JoinHandle<()> {
@@ -54,13 +54,12 @@ impl Updater{
                            match self.ch.recv().unwrap() {
                                Msg::Go =>
                                    for mut dev in self.devs.iter()
-                                   .map(|lock| lock.write().unwrap())
                                    .filter(|d| d.is_changed()) {
                                        for ChVal(ch, val) in dev.changed_ch_vals(){
                                            //send couple to microcontroller
                                            write!(&mut port, "{}c{}v", ch, val);
                                        }
-                                       dev.updated();
+                                       dev.set_updated();
                                    },
                                Msg::Stop => break
                            }

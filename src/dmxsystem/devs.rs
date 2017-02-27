@@ -22,14 +22,16 @@ use std::ops::Deref;
 use std::u8;
 use std::ops::Index;
 use std::time::Duration;
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+
 
 use dmxsystem::channel::*;
 
 pub struct SimpleLight{
     name: String,
     first_ch:u16,
-    needs_update: bool,
+    needs_update: AtomicBool,
     channels: Vec<Arc<Mutex<Channel>>>
 }
 
@@ -39,14 +41,14 @@ impl<'a> SimpleLight{
         SimpleLight{
             name: name,
             first_ch: first_ch,
-            needs_update: false,
+            needs_update: AtomicBool::default(),
             channels: vec!()
         }
     }
 
-    pub fn set(&mut self, couple: ChVal){
+    pub fn set(&self, couple: ChVal){
         self.channels[(couple.0-self.first_ch) as usize].lock().unwrap().set_value(couple.1);
-        self.needs_update = true;
+        self.needs_update.store(true, Ordering::Relaxed);
     }
 
     pub fn get_ch(&self, i:u16) -> Arc<Mutex<Channel>>{
@@ -54,15 +56,15 @@ impl<'a> SimpleLight{
     }
     
     pub fn is_changed(&self) -> bool {
-        self.needs_update
+        self.needs_update.load(Ordering::Relaxed)
     }
     
     pub fn changed_ch_vals(&'a self) -> FilterMap<Iter<'a, Arc<Mutex<Channel>>>, fn(&Arc<Mutex<Channel>>) -> Option<ChVal>> {
         self.channels.iter()
             .filter_map(ch_val as _)
     }
-    pub fn updated(&'a mut self){
-        self.needs_update = false;
+    pub fn set_updated(&'a self){
+        self.needs_update.store(false, Ordering::Relaxed);
     }
 }
 
@@ -76,40 +78,40 @@ fn ch_val(r: &Arc<Mutex<Channel>>) -> Option<ChVal>{
 }
 
 pub struct RGBLight {
-    l: Arc<RwLock<SimpleLight>>,
+    l: Arc<SimpleLight>,
     r: Fader,
     g: Fader,
     b: Fader
 }
 
 impl RGBLight {
-    pub fn new(l: Arc<RwLock<SimpleLight>>, r:u16, g:u16, b:u16) -> RGBLight{
+    pub fn new(l: Arc<SimpleLight>, r:u16, g:u16, b:u16) -> RGBLight{
         RGBLight{
             l:l.clone(),
-            r:Fader::new(l.read().unwrap().get_ch(r)),
-            g:Fader::new(l.read().unwrap().get_ch(g)),
-            b:Fader::new(l.read().unwrap().get_ch(b))
+            r:Fader::new(l.get_ch(r)),
+            g:Fader::new(l.get_ch(g)),
+            b:Fader::new(l.get_ch(b))
         }
     }
     pub fn set_color(self, r:u8, g:u8, b:u8){
         self.r.set_value(r);
         self.g.set_value(g);
         self.b.set_value(b);
-        self.l.write().unwrap().needs_update = true;
+        self.l.needs_update.store(true, Ordering::Relaxed);
     }
 }
 
 #[derive(Clone)]
 pub struct Dimmer {
-    l: Arc<RwLock<SimpleLight>>,
+    l: Arc<SimpleLight>,
     d: Fader
 }
 
 impl Dimmer{
-    pub fn new(l: Arc<RwLock<SimpleLight>>, d: u16) -> Dimmer{
+    pub fn new(l: Arc<SimpleLight>, d: u16) -> Dimmer{
         Dimmer{
             l: l.clone(),
-            d: Fader::new(l.read().unwrap().get_ch(d))
+            d: Fader::new(l.get_ch(d))
         }
     }
 
