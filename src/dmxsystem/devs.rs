@@ -1,5 +1,4 @@
-/*
-Copyright 2017 Gianmarco Garrisi
+/* Copyright 2017 Gianmarco Garrisi
 
 This file is part of LCS.
 
@@ -18,13 +17,11 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 use std::iter::*;
 use std::slice::Iter;
-use std::ops::Deref;
-use std::u8;
 use std::ops::Index;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
-
+use std::vec::Vec;
 
 use dmxsystem::channel::*;
 
@@ -37,12 +34,16 @@ pub struct SimpleLight{
 
 impl<'a> SimpleLight{
 
-    pub fn new(name: String, first_ch: u16) -> SimpleLight {
+    pub fn new(name: String, first_ch: u16, number_of_chs: u16) -> SimpleLight {
+        let mut tmp_vec = Vec::with_capacity(number_of_chs as _);
+        for i in (first_ch..).take(number_of_chs as _) {
+            tmp_vec.push(Arc::new(Mutex::new(Channel::new(i))));
+        }
         SimpleLight{
             name: name,
             first_ch: first_ch,
             needs_update: AtomicBool::default(),
-            channels: vec!()
+            channels: tmp_vec
         }
     }
 
@@ -124,8 +125,23 @@ impl Dimmer{
             Duration::new(0,0)
         }
     }
+    
+    pub fn fade_out(&mut self, d:Duration) -> Duration{
+        let a = self.d.fade_out();
+        if  a != 0 {
+            d / a as u32
+        }
+        else {
+            Duration::new(0,0)
+        }
+    }
 
     pub fn fade_step(&mut self) -> bool{
         self.d.fade_step()
     }
+
+    pub fn black_out(&mut self){
+        self.d.set_value(0);
+    }
+
 }

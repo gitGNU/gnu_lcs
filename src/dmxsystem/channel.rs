@@ -50,6 +50,13 @@ pub struct Segmented<'a>{
 }
 
 impl Channel {
+    pub fn new(ch_num:u16) -> Self {
+        Channel{
+            ch_num: ch_num,
+            value: 0,
+            needs_update: false
+        }
+    }
     pub fn is_changed(&self) -> bool{
         self.needs_update
     }
