@@ -18,4 +18,4 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 extern crate serial;
 
-mod dmxsystem;
+pub mod dmxsystem;

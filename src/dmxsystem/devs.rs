@@ -78,46 +78,105 @@ fn ch_val(r: &Arc<Mutex<Channel>>) -> Option<ChVal>{
     }
 }
 
-pub struct RGBLight {
+pub struct ColorLight {
     l: Arc<SimpleLight>,
     r: Fader,
     g: Fader,
-    b: Fader
+    b: Fader,
+    w: Option<Fader>,
+    cmy: bool
 }
 
-impl RGBLight {
-    pub fn new(l: Arc<SimpleLight>, r:u16, g:u16, b:u16) -> RGBLight{
-        RGBLight{
+impl ColorLight {
+    pub fn rgb(l: Arc<SimpleLight>, r:u16, g:u16, b:u16) -> Self{
+        ColorLight{
             l:l.clone(),
             r:Fader::new(l.get_ch(r)),
             g:Fader::new(l.get_ch(g)),
-            b:Fader::new(l.get_ch(b))
+            b:Fader::new(l.get_ch(b)),
+            w: None,
+            cmy: false
         }
     }
-    pub fn set_color(self, r:u8, g:u8, b:u8){
-        self.r.set_value(r);
-        self.g.set_value(g);
-        self.b.set_value(b);
-        self.l.needs_update.store(true, Ordering::Relaxed);
+
+    pub fn rgbw(l: Arc<SimpleLight>, r:u16, g:u16, b:u16, w:u16) -> Self{
+        ColorLight{
+            l:l.clone(),
+            r:Fader::new(l.get_ch(r)),
+            g:Fader::new(l.get_ch(g)),
+            b:Fader::new(l.get_ch(b)),
+            w:Some(Fader::new(l.get_ch(w))),
+            cmy: false
+        }
+    }
+    pub fn set_color(&mut self, r:u8, g:u8, b:u8){
+        //How to manage white?
+        //I would like something that selecting a color from a color tool automagically select the best quantity of white.
+        if self.cmy == false{
+            self.r.set_value(r);
+            self.g.set_value(g);
+            self.b.set_value(b);
+            self.l.needs_update.store(true, Ordering::Relaxed);
+        }
+    }
+    pub fn fade_to_color(&mut self, r:u8, g:u8, b:u8, d:Duration) -> Duration{
+        let r = self.r.fade_to_value(r);
+        let g = self.g.fade_to_value(g);
+        let b = self.b.fade_to_value(b);
+        let max =
+            if r > g {
+                if r > b {
+                    r
+                } else {
+                    b
+                }
+            } else if g > b {
+                g
+            } else {
+                b
+            } as u32;
+        if max == 0 {
+            Duration::new(0,0)
+        } else {
+            d/max
+        }  
+    }
+    pub fn fade_step(&mut self) -> bool{
+        let r = self.r.fade_step();
+        let g = self.g.fade_step();
+        let b = self.b.fade_step();
+
+        r|g|b
     }
 }
 
 #[derive(Clone)]
 pub struct Dimmer {
     l: Arc<SimpleLight>,
-    d: Fader
+    coarse: Fader,
+    fine: Option<Fader>
 }
 
 impl Dimmer{
     pub fn new(l: Arc<SimpleLight>, d: u16) -> Dimmer{
         Dimmer{
             l: l.clone(),
-            d: Fader::new(l.get_ch(d))
+            coarse: Fader::new(l.get_ch(d)),
+            fine: None
+        }
+    }
+
+    pub fn with_fine(l: Arc<SimpleLight>, c: u16, f: u16) -> Dimmer{
+        Dimmer{
+            l: l.clone(),
+            coarse: Fader::new(l.get_ch(c)),
+            fine: Some(Fader::new(l.get_ch(f)))
         }
     }
 
     pub fn fade_in(&mut self, d: Duration) -> Duration{
-        let a = self.d.fade_in();
+        //TODO: Add fine fader management
+        let a = self.coarse.fade_in();
         if  a != 0 {
             d / a as u32
         }
@@ -127,7 +186,7 @@ impl Dimmer{
     }
     
     pub fn fade_out(&mut self, d:Duration) -> Duration{
-        let a = self.d.fade_out();
+        let a = self.coarse.fade_out();
         if  a != 0 {
             d / a as u32
         }
@@ -137,11 +196,11 @@ impl Dimmer{
     }
 
     pub fn fade_step(&mut self) -> bool{
-        self.d.fade_step()
+        self.coarse.fade_step()
     }
 
     pub fn black_out(&mut self){
-        self.d.set_value(0);
+        self.coarse.set_value(0);
     }
 
 }

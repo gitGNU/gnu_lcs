@@ -1,5 +1,4 @@
-/*
-Copyright 2017 Gianmarco Garrisi
+/* Copyright 2017 Gianmarco Garrisi
 
 This file is part of LCS.
 
@@ -53,7 +52,7 @@ impl Updater{
                        loop {
                            match self.ch.recv().unwrap() {
                                Msg::Go =>
-                                   for mut dev in self.devs.iter()
+                                   for dev in self.devs.iter()
                                    .filter(|d| d.is_changed()) {
                                        dev.set_updated();
                                        for ChVal(ch, val) in dev.changed_ch_vals(){

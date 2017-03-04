@@ -36,7 +36,7 @@ use dmxsystem::upthread::{Updater, Msg};
 
 pub struct Universe {
     lights:  BTreeMap<String, Arc<SimpleLight>>,
-    rgbs:    HashMap<String, RGBLight>,
+    colors:    HashMap<String, ColorLight>,
     dimmers: HashMap<String, Dimmer>,
     updater: Option<(JoinHandle<()>, Sender<Msg>)>,
 }
@@ -48,7 +48,7 @@ impl Universe{
     pub fn new() -> Universe {
         Universe{
             lights:  BTreeMap::new(),
-            rgbs:    HashMap::new(),
+            colors:  HashMap::new(),
             dimmers: HashMap::new(),
             updater: None,
         }
@@ -75,7 +75,7 @@ impl Universe{
     pub fn stop(&mut self){
         if let Some(c) = self.updater.take() {
             c.1.send(Msg::Stop).unwrap();
-            c.0.join();
+            c.0.join().unwrap();
         }
     }
 
@@ -88,7 +88,10 @@ impl Universe{
         self.dimmers.insert(name.clone(), Dimmer::new(self.lights.get(&name).unwrap().clone(), dimmer_ch)); //add error checking
     }
     pub fn add_rgb(&mut self, name: String, red_ch: u16, green_ch: u16, blue_ch:u16){
-        self.rgbs.insert(name.clone(), RGBLight::new(self.lights.get(&name).unwrap().clone(), red_ch, green_ch, blue_ch)); //add error checking
+        self.colors.insert(name.clone(), ColorLight::rgb(self.lights.get(&name).unwrap().clone(), red_ch, green_ch, blue_ch)); //add error checking
+    }
+    pub fn add_rgbw(&mut self, name: String, red: u16, green: u16, blue: u16, white: u16) {
+        self.colors.insert(name.clone(), ColorLight::rgbw(self.lights.get(&name).unwrap().clone(), red, green, blue, white)); //add error checking
     }
     pub fn fade_in_one(&mut self, name: String, t: Duration) -> Option<Transition> {
         if let Some(ref c) = self.updater {
@@ -110,21 +113,55 @@ impl Universe{
         }
         None
     }
+
+    pub fn fade_in_all(&mut self, t: Duration) -> Option<Transition> {
+        if let Some(ref c) = self.updater {
+            let s = c.1.clone();
+            let mut ds:Vec<Dimmer> = self.dimmers.values().cloned().collect();
+            let t = ds.iter_mut().map(|d| d.fade_in(t)).min().unwrap();
+            let (tx, rx) = mpsc::channel();
+            return Some(Transition(thread::spawn( move || {
+                let mut cond = true;
+                while cond {
+                    cond = false;
+                    for mut d in ds.iter_mut() {
+                        if d.fade_step() == true {
+                            cond = true;
+                        }
+                    }
+                    thread::sleep(t);
+                    if let Ok(Msg::Stop) = rx.try_recv() {
+                        break;
+                    }
+                }
+            }), tx))
+        }
+        None
+    }
+
+    pub fn go_bo(&mut self){
+        for d in self.dimmers.values_mut(){
+            d.black_out();
+        }
+        if let Some(ref u) = self.updater {
+            u.1.send(Msg::Go).unwrap();
+        }
+    }
 }
 
 impl Drop for Universe {
     fn drop(&mut self){
         if let Some(a) = self.updater.take() {
             a.1.send(Msg::Stop).unwrap();
-            a.0.join();
+            a.0.join().unwrap();
         }
     }
 }
 //usually people suggest a scoped threadpool for something where that's not available, but the way this looks i'm not sure the best way to integrate it
 
 impl Transition{
-    fn stop(self){
+    pub fn stop(self){
         self.1.send(Msg::Stop).unwrap();
-        self.0.join();
+        self.0.join().unwrap();
     }
 }

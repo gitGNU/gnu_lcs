@@ -15,7 +15,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
-use std::time::Duration;
 use std::u8;
 use std::sync::{Arc, Mutex};
 
@@ -33,13 +32,6 @@ pub struct Channel{
     ch_num: u16,
     value: u8,
     needs_update: bool,
-}
-
-///Adds a snapping functionality to a channel. It is designed for
-///channels that only cares about specific ranges of values 
-pub struct Snapping<'a>{
-    ch: &'a Channel,
-    possible_values:Vec<ChVal>,
 }
 
 ///Adds functionality to channel. It is designed for those channels
@@ -138,5 +130,21 @@ impl Fader {
             return false;
         }
         true
+    }
+}
+
+///Adds a snapping functionality to a channel. It is designed for
+///channels that only cares about specific ranges of values 
+pub struct Snapping{
+    ch: Arc<Mutex<Channel>>,
+    possible_values:Vec<ChVal>,
+}
+
+impl Snapping {
+    pub fn new(ch:Arc<Mutex<Channel>>) -> Self {
+        Snapping{
+            ch: ch.clone(),
+            possible_values: vec!()
+        }
     }
 }
