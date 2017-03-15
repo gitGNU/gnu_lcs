@@ -31,9 +31,11 @@ use dmxsystem::channel::ChVal;
 
 pub struct Updater{
     devs: Vec<Arc<SimpleLight>>,
-    ch: Receiver<Msg>,
     // data for microcontroller communication
-    settings: TTYSettings
+    settings: TTYSettings,
+    thread: Option<JoinHandle<()>>,
+    stop: AtomicBool,
+    updated: (Mutex<bool>, Condvar)
 }
 
 pub enum Msg {
@@ -43,9 +45,9 @@ pub enum Msg {
 
 impl Updater{
     pub fn set(devs: Vec<Arc<SimpleLight>>, ch: Receiver<Msg>, settings: TTYSettings) -> Updater{
-        Updater{devs: devs, ch:ch, settings: settings}
+        Updater{devs: devs, settings: settings, thread: None, stop:AtomicBool::default(), updated:AtomicBool::default()}
     }
-    pub fn start(self) -> JoinHandle<()> {
+    pub fn start(&self) {
         thread::spawn( move || {
                        let mut port = serial::open("/dev/ttyACM0").unwrap(); //add error checking
                        port.write_settings(&self.settings);
@@ -64,5 +66,14 @@ impl Updater{
                            }
                        }
         })
+    }
+    pub fn update(&self){
+        let &(ref lock, ref cvar) = &*updated;
+        let mut to_update = lock.lock().unwrap();
+        *to_update = true;
+        cvar.notify_one();
+    }
+    pub fn stop(&self) {
+        self.stop.store(true, Ordering::Relaxed);
     }
 }
