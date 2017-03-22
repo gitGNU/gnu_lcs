@@ -33,47 +33,63 @@ pub struct Updater{
     devs: Vec<Arc<SimpleLight>>,
     // data for microcontroller communication
     settings: TTYSettings,
-    thread: Option<JoinHandle<()>>,
-    stop: AtomicBool,
-    updated: (Mutex<bool>, Condvar)
 }
 
-pub enum Msg {
-    Go,
-    Stop
+#[derive(Sync, Send, Clone)]
+pub struct UpThread{
+    thread: JoinHandle<()>,
+    stop_updated: Arc<(AtomicBool, Mutex<bool>, Condvar)>
 }
 
 impl Updater{
     pub fn set(devs: Vec<Arc<SimpleLight>>, ch: Receiver<Msg>, settings: TTYSettings) -> Updater{
-        Updater{devs: devs, settings: settings, thread: None, stop:AtomicBool::default(), updated:AtomicBool::default()}
+        Updater{devs: devs, settings: settings}
     }
-    pub fn start(&self) {
-        thread::spawn( move || {
-                       let mut port = serial::open("/dev/ttyACM0").unwrap(); //add error checking
-                       port.write_settings(&self.settings);
-                       loop {
-                           match self.ch.recv().unwrap() {
-                               Msg::Go =>
-                                   for dev in self.devs.iter()
-                                   .filter(|d| d.is_changed()) {
-                                       dev.set_updated();
-                                       for ChVal(ch, val) in dev.changed_ch_vals(){
-                                           //send couple to microcontroller
-                                           write!(&mut port, "{}c{}v", ch, val);
-                                       }
-                                   },
-                               Msg::Stop => break
-                           }
-                       }
-        })
+    pub fn start(self) -> UpThread {
+        let tern = Arc::new((
+            AtomicBool::default(),
+            Mutex::new(false),
+            Condvar::default()
+        ));
+        let thr = {
+            let tern = tern.clone();
+            thread::spawn( move || {
+                let mut port = serial::open("/dev/ttyACM0").unwrap(); //add error checking
+                port.write_settings(&self.settings);
+                loop {
+                    {
+                        let &(stop, lock, cvar) = &*tern;
+                        if stop.load(Ordering::Relaxed) { break; }
+                        let mut updated = lock.lock().unwrap();
+                        while (!*updated) {
+                            cvar.wait(updated).unwrap();
+                        }
+                        *updated = false;
+                    }
+                    for dev in self.devs.iter()
+                        .filter(|d| d.is_changed()) {
+                            dev.set_updated();
+                            for ChVal(ch, val) in dev.changed_ch_vals(){
+                                //send couple to microcontroller
+                                write!(&mut port, "{}c{}v", ch, val);
+                            }
+                        }
+                }
+            })
+        };
+        UpThread{thread:thr, stop_updated:tern}
     }
+}
+impl UpThread{
     pub fn update(&self){
-        let &(ref lock, ref cvar) = &*updated;
+        let &(ref stop, ref lock, ref cvar) = &*stop_updated;
         let mut to_update = lock.lock().unwrap();
         *to_update = true;
         cvar.notify_one();
     }
-    pub fn stop(&self) {
-        self.stop.store(true, Ordering::Relaxed);
+    pub fn stop(self) {
+        let stop = self.(*stop_updated).0;
+        stop.store(true, Ordering::Relaxed);
+        self.thread.join();
     }
 }
