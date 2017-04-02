@@ -32,15 +32,18 @@ use std::time::Duration;
 use serial::posix::TTYSettings;
 
 use dmxsystem::devs::*;
-use dmxsystem::upthread::{Updater, Msg};
+use dmxsystem::upthread::{Updater, UpThread};
 
 pub struct Universe {
     lights:  BTreeMap<String, Arc<SimpleLight>>,
     colors:    HashMap<String, ColorLight>,
     dimmers: HashMap<String, Dimmer>,
-    updater: Option<(JoinHandle<()>, Sender<Msg>)>,
+    updater: Option<UpThread>,
 }
-
+enum Msg {
+    Ok,
+    Stop
+}
 pub struct Transition(JoinHandle<()>, Sender<Msg>); 
 
 impl Universe{
@@ -69,13 +72,11 @@ impl Universe{
   // }
 
     pub fn start(&mut self, settings: TTYSettings){
-        let (s, r) = mpsc::channel();
-        self.updater = Some((Updater::set(self.lights.values().cloned().collect::<Vec<_>>(), r, settings).start(), s));
+        self.updater = Some(Updater::set(self.lights.values().cloned().collect::<Vec<_>>(), settings).start());
     }
     pub fn stop(&mut self){
         if let Some(c) = self.updater.take() {
-            c.1.send(Msg::Stop).unwrap();
-            c.0.join().unwrap();
+            c.stop();
         }
     }
 
@@ -95,14 +96,14 @@ impl Universe{
     }
     pub fn fade_in_one(&mut self, name: String, t: Duration) -> Option<Transition> {
         if let Some(ref c) = self.updater {
-            let s = c.1.clone();
+            let s = c.get_arc();
             if let Some(ref mut d) = self.dimmers.get(&name) {
                 let mut d = d.clone();
                 let t = d.fade_in(t);
                 let (tx, rx) = mpsc::channel();
                 return Some(Transition(thread::spawn( move || {
                     while d.fade_step(){
-                        s.send(Msg::Go).unwrap();
+                        s.update();
                         thread::sleep(t);
                         if let Ok(Msg::Stop) = rx.try_recv() {
                             break;
@@ -116,7 +117,7 @@ impl Universe{
 
     pub fn fade_in_all(&mut self, t: Duration) -> Option<Transition> {
         if let Some(ref c) = self.updater {
-            let s = c.1.clone();
+            let s = c.get_arc();
             let mut ds:Vec<Dimmer> = self.dimmers.values().cloned().collect();
             let t = ds.iter_mut().map(|d| d.fade_in(t)).min().unwrap();
             let (tx, rx) = mpsc::channel();
@@ -144,7 +145,7 @@ impl Universe{
             d.black_out();
         }
         if let Some(ref u) = self.updater {
-            u.1.send(Msg::Go).unwrap();
+            u.update();
         }
     }
 }
@@ -152,8 +153,7 @@ impl Universe{
 impl Drop for Universe {
     fn drop(&mut self){
         if let Some(a) = self.updater.take() {
-            a.1.send(Msg::Stop).unwrap();
-            a.0.join().unwrap();
+            a.stop();
         }
     }
 }

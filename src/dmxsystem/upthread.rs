@@ -16,7 +16,8 @@ You should have received a copy of the GNU General Public License
 along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 use std::sync::mpsc::Receiver;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Condvar};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::thread;
 use std::io::Write;
@@ -35,34 +36,44 @@ pub struct Updater{
     settings: TTYSettings,
 }
 
-#[derive(Sync, Send, Clone)]
 pub struct UpThread{
-    thread: JoinHandle<()>,
-    stop_updated: Arc<(AtomicBool, Mutex<bool>, Condvar)>
+    join_handle: JoinHandle<()>,
+    arc: Arc<UpThreadInternals>
+}
+
+pub struct UpThreadInternals {
+    stop: AtomicBool,
+    lock: Mutex<bool>,
+    cvar: Condvar
 }
 
 impl Updater{
-    pub fn set(devs: Vec<Arc<SimpleLight>>, ch: Receiver<Msg>, settings: TTYSettings) -> Updater{
+    pub fn set(devs: Vec<Arc<SimpleLight>>, settings: TTYSettings) -> Updater{
         Updater{devs: devs, settings: settings}
     }
     pub fn start(self) -> UpThread {
-        let tern = Arc::new((
-            AtomicBool::default(),
-            Mutex::new(false),
-            Condvar::default()
-        ));
-        let thr = {
-            let tern = tern.clone();
+        let arc = Arc::new(
+            UpThreadInternals{
+                stop: AtomicBool::default(),
+                lock: Mutex::new(false),
+                cvar: Condvar::default()
+            }
+        );
+        let thr =
+        {
+            let controls = arc.clone();
             thread::spawn( move || {
                 let mut port = serial::open("/dev/ttyACM0").unwrap(); //add error checking
                 port.write_settings(&self.settings);
                 loop {
                     {
-                        let &(stop, lock, cvar) = &*tern;
+                        let ref stop = controls.stop;
+                        let ref lock = controls.lock;
+                        let ref cvar = controls.cvar;
                         if stop.load(Ordering::Relaxed) { break; }
                         let mut updated = lock.lock().unwrap();
-                        while (!*updated) {
-                            cvar.wait(updated).unwrap();
+                        while !*updated {
+                            updated = cvar.wait(updated).unwrap();
                         }
                         *updated = false;
                     }
@@ -77,19 +88,34 @@ impl Updater{
                 }
             })
         };
-        UpThread{thread:thr, stop_updated:tern}
+        UpThread{join_handle:thr, arc:arc}
     }
 }
+
 impl UpThread{
     pub fn update(&self){
-        let &(ref stop, ref lock, ref cvar) = &*stop_updated;
-        let mut to_update = lock.lock().unwrap();
-        *to_update = true;
-        cvar.notify_one();
+        self.arc.update();
     }
-    pub fn stop(self) {
-        let stop = self.(*stop_updated).0;
-        stop.store(true, Ordering::Relaxed);
-        self.thread.join();
+    pub fn get_arc(&self) -> Arc<UpThreadInternals>{
+        self.arc.clone()
+    }
+    pub fn stop(self){
+        if let Ok(ut) = Arc::try_unwrap(self.arc){
+            ut.stop();
+            self.join_handle.join();
+        } else {
+            //log
+        }
+    }
+}
+
+impl UpThreadInternals{
+    pub fn update(&self){
+        let mut to_update = self.lock.lock().unwrap();
+        *to_update = true;
+        self.cvar.notify_one();
+    }
+    fn stop(self) {
+        self.stop.store(true, Ordering::Relaxed);
     }
 }
