@@ -19,15 +19,19 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 //should offer an elegant interface
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::mpsc::Sender;
-use std::sync::{mpsc, Arc};
+use std::option::Option;
+use std::time::Duration;
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use std::thread;
 use std::thread::JoinHandle;
+
 use std::fs::File;
 use std::path::Path;
 use std::io::{Read, Result};
-use std::option::Option;
-use std::time::Duration;
+
 
 use serial::posix::TTYSettings;
 
@@ -36,7 +40,7 @@ use dmxsystem::upthread::{Updater, UpThread};
 
 pub struct Universe {
     lights:  BTreeMap<String, Arc<SimpleLight>>,
-    colors:    HashMap<String, ColorLight>,
+    colors:  HashMap<String, ColorLight>,
     dimmers: HashMap<String, Dimmer>,
     updater: Option<UpThread>,
 }
@@ -44,7 +48,7 @@ enum Msg {
     Ok,
     Stop
 }
-pub struct Transition(JoinHandle<()>, Sender<Msg>); 
+pub struct Transition(JoinHandle<()>, Arc<AtomicBool>);
 
 impl Universe{
     
@@ -100,16 +104,17 @@ impl Universe{
             if let Some(ref mut d) = self.dimmers.get(&name) {
                 let mut d = d.clone();
                 let t = d.fade_in(t);
-                let (tx, rx) = mpsc::channel();
+                let arc = Arc::new(AtomicBool::default());
+                let arc2 = arc.clone();
                 return Some(Transition(thread::spawn( move || {
                     while d.fade_step(){
                         s.update();
                         thread::sleep(t);
-                        if let Ok(Msg::Stop) = rx.try_recv() {
+                        if arc2.load(Ordering::Relaxed) == true {
                             break;
                         }
                     }
-                }), tx))
+                }), arc))
             }
         }
         None
@@ -120,7 +125,8 @@ impl Universe{
             let s = c.get_arc();
             let mut ds:Vec<Dimmer> = self.dimmers.values().cloned().collect();
             let t = ds.iter_mut().map(|d| d.fade_in(t)).min().unwrap();
-            let (tx, rx) = mpsc::channel();
+            let arc = Arc::new(AtomicBool::default());
+            let arc2 = arc.clone();
             return Some(Transition(thread::spawn( move || {
                 let mut cond = true;
                 while cond {
@@ -131,11 +137,11 @@ impl Universe{
                         }
                     }
                     thread::sleep(t);
-                    if let Ok(Msg::Stop) = rx.try_recv() {
+                    if arc2.load(Ordering::Relaxed) == true {
                         break;
                     }
                 }
-            }), tx))
+            }), arc))
         }
         None
     }
@@ -157,11 +163,10 @@ impl Drop for Universe {
         }
     }
 }
-//usually people suggest a scoped threadpool for something where that's not available, but the way this looks i'm not sure the best way to integrate it
 
 impl Transition{
     pub fn stop(self){
-        self.1.send(Msg::Stop).unwrap();
+        self.1.store(true, Ordering::Relaxed);
         self.0.join().unwrap();
     }
 }
