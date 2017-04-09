@@ -27,6 +27,37 @@ Author: Gianmarco Garrisi
   <!-- interface-name LCS -->
   <!-- interface-copyright Gianmarco Garrisi -->
   <!-- interface-authors Gianmarco Garrisi -->
+  <object class="GtkColorChooserWidget">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="rgba">rgb(255,255,255)</property>
+    <property name="use_alpha">False</property>
+    <property name="show_editor">True</property>
+  </object>
+  <object class="GtkMenu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+  </object>
+  <object class="GtkMenu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkMenuItem" id="add_light_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Add Light</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="add_universe">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Add universe</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+  </object>
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">1</property>
     <property name="upper">512</property>
@@ -206,44 +237,16 @@ Author: Gianmarco Garrisi
           </packing>
         </child>
         <child>
-          <object class="GtkToolbar" id="tools">
+          <object class="GtkToolbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkToolButton" id="add_light_btn">
+              <object class="GtkMenuToolButton" id="add_light_btn">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Add Light</property>
+                <property name="label" translatable="yes">Add light</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-add</property>
-                <signal name="clicked" handler="add_light" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Start</property>
-                <property name="use_underline">True</property>
-                <property name="stock_id">gtk-media-play</property>
-                <signal name="clicked" handler="start" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="blackout">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">B_lackOut</property>
-                <property name="use_underline">True</property>
-                <property name="stock_id">gtk-no</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -345,8 +348,8 @@ Author: Gianmarco Garrisi
             <property name="can_focus">False</property>
             <property name="layout_style">end</property>
             <child>
-              <object class="GtkButton">
-                <property name="label">gtk-ok</property>
+              <object class="GtkButton" id="add_light_ok">
+                <property name="label">gtk-go-forward</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -359,7 +362,7 @@ Author: Gianmarco Garrisi
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="add_light_cancel">
                 <property name="label">gtk-cancel</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
@@ -376,14 +379,15 @@ Author: Gianmarco Garrisi
           <packing>
             <property name="expand">False</property>
             <property name="fill">False</property>
+            <property name="pack_type">end</property>
             <property name="position">0</property>
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkBox" id="add_light_box">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="margin_bottom">113</property>
+            <property name="margin_bottom">114</property>
             <property name="orientation">vertical</property>
             <child>
               <object class="GtkBox">
@@ -534,6 +538,54 @@ Author: Gianmarco Garrisi
           </packing>
         </child>
       </object>
+    </child>
+  </object>
+  <object class="GtkBox" id="prototype">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkLabel" id="proto-ch_num">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Canale 1</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkComboBoxText">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="active">5</property>
+        <property name="active_id">none</property>
+        <items>
+          <item translatable="yes">Dimmer</item>
+          <item translatable="yes">Red</item>
+          <item translatable="yes">Green</item>
+          <item translatable="yes">Blue</item>
+          <item id="none" translatable="yes">Nessuno</item>
+        </items>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
     </child>
   </object>
 </interface>
