@@ -261,22 +261,7 @@ Author: Gianmarco Garrisi
           </packing>
         </child>
         <child>
-          <object class="GtkPaned">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="margin_bottom">282</property>
-            <child>
-              <placeholder/>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
+          <placeholder/>
         </child>
         <child>
           <object class="GtkStatusbar" id="stat">
@@ -407,7 +392,7 @@ Author: Gianmarco Garrisi
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEntry">
+                  <object class="GtkEntry" id="light_name">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                   </object>

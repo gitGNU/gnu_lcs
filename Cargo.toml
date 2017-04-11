@@ -5,6 +5,4 @@ authors = ["gianmarco"]
 
 [dependencies]
 serial = "0.3.4"
-[dependencies.gtk]
-version = "0.1.0"
-features = ["v3_16"]
+gtk = "0.1.0"

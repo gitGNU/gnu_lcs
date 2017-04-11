@@ -18,21 +18,27 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 extern crate lcs;
 extern crate gtk;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use gtk::prelude::*;
 use gtk::{ToolButton, SpinButton, Button, Dialog, Window, Box};
-use gtk::{Builder, ApplicationWindow, MenuItem, AboutDialog};
-use gtk::{Label, Entry, ComboBoxText, Orientation, Statusbar};
+use gtk::{Builder, ApplicationWindow, MenuItem};
+use gtk::{Label, Entry, ComboBoxText, Orientation, Statusbar, Adjustment};
 
 use lcs::dmxsystem::universe::Universe;
 
 fn main() {
 
-  //let app;
-  //if let ok(tmp) = Application::new(None::<&str>, gio::APPLICATION_FLAGS_NONE) {
-  //    app = tmp;
-  //} else {
-  //    panic!("Fatal error! Unable to create Gtk Application")
-  //}
+    
+    let u = Rc::new(RefCell::new(Universe::new()));
+    
+    //let app;
+    //if let ok(tmp) = Application::new(None::<&str>, gio::APPLICATION_FLAGS_NONE) {
+    //    app = tmp;
+    //} else {
+    //    panic!("Fatal error! Unable to create Gtk Application")
+    //}
     
     if gtk::init().is_err(){
         panic!("Fatal error! Unable to initialize Graphic Interface")
@@ -40,32 +46,42 @@ fn main() {
 
     let glade_src = include_str!("GUI.glade");
 
-    let builder = Builder::new_from_string(glade_src);
-    let window = builder.get_object::<ApplicationWindow>("main").unwrap();
-    let tmp_menuitem = builder.get_object::<MenuItem>("about_menu").unwrap();
-    let tmp_dialog = builder.get_object::<Dialog>("about").unwrap();
+    let builder = Builder::new();
+    builder.add_from_string(glade_src).unwrap();
+
+    let window: ApplicationWindow = builder.get_object("main").unwrap();
+
+    /* About dialog */
+    let tmp_menuitem: MenuItem = builder.get_object("about_menu").unwrap();
+    let tmp_dialog: Dialog = builder.get_object("about").unwrap();
     let tmp_d = tmp_dialog.clone();
     tmp_dialog.connect_close(move |_|{
         tmp_d.hide();
     });
-    let tmp_button: ToolButton = builder.get_object("add_light_btn").unwrap();
-    
     tmp_menuitem.connect_activate(move |_| {
-        tmp_dialog.show();
+        tmp_dialog.run();
+        tmp_dialog.hide();
     });
-    
-    let tmp_dialog = builder.get_object::<Dialog>("add_light_dialog").unwrap();
+
+    /* Add light: I could create the dialog in a separate function and destroy it */
+    let tmp_button: ToolButton = builder.get_object("add_light_btn").unwrap();
+    let tmp_dialog: Dialog = builder.get_object("add_light_dialog").unwrap();
     let tmp_d:Dialog = tmp_dialog.clone();
     tmp_button.connect_clicked(move |_| {
-        tmp_d.show();
+        tmp_d.run();
+        tmp_d.hide();
     });
     let tmp_d = tmp_dialog.clone();
     builder.get_object::<Button>("add_light_cancel").unwrap().connect_clicked(move |_| {
         tmp_d.hide();
     });
-    
+
+    let first_ch_adj: Adjustment = builder.get_object("adjustment1").unwrap();
+    let num_of_chs: Adjustment = builder.get_object("adjustment2").unwrap();
+    let name: Entry = builder.get_object("light_name").unwrap();
+    let u2 = u.clone();
     builder.get_object::<Button>("add_light_ok").unwrap().connect_clicked(move |_| {
-        //add_light();
+        add_light(name.clone(), first_ch_adj.clone(), num_of_chs.clone(), u2.clone());
         tmp_dialog.hide();
     });
     //after the first time the button gets broken!
@@ -75,11 +91,11 @@ fn main() {
         gtk::main_quit();
     });
 
-    let tmp_dialog = builder.get_object::<Dialog>("welcome").unwrap();
-    tmp_dialog.show();
+    /* "splash" screen */
+    let tmp_dialog: Dialog = builder.get_object("welcome").unwrap();
     let tmp_d = tmp_dialog.clone();
     tmp_dialog.connect_close(move |_| {
-        tmp_d.destroy();
+        tmp_d.hide();
     });
     
     window.connect_delete_event(|_,_| {
@@ -87,14 +103,21 @@ fn main() {
         Inhibit(false)
     });
     window.show_all();
+    tmp_dialog.run();
+    tmp_dialog.hide();
 
-    let stat = builder.get_object::<Statusbar>("stat").unwrap();
+    let stat: Statusbar = builder.get_object("stat").unwrap();
     let contid = stat.get_context_id("Ready");
     stat.push(contid, "Ready");
     gtk::main();
 
-    //let mut u = Universe::new();
-
     //let l = u.add_light("Par1".to_string(), 1, 4);
     
+}
+
+fn add_light(name: Entry, first_channel: Adjustment, number_of_channels: Adjustment, universe: Rc<RefCell<Universe>>){
+    let name = name.get_text().unwrap();
+    let first_channel = first_channel.get_value() as u16;
+    let number_of_channels = number_of_channels.get_value() as u16;
+    universe.borrow_mut().add_light(name, first_channel, number_of_channels);
 }
