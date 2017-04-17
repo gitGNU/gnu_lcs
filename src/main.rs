@@ -28,6 +28,10 @@ use gtk::{Label, Entry, ComboBoxText, Orientation, Statusbar, Adjustment};
 
 use lcs::dmxsystem::universe::Universe;
 
+/* the following constants contains the glade sources as strings. Change the argument of include_str! if the path of the files changes */
+const GLADE_SRC: &'static str=include_str!("GUI.glade");
+const ADD_LIGHT_DIALOG_SRC: &'static str=include_str!("add_light_dialog.glade");
+
 fn main() {
 
     
@@ -44,10 +48,8 @@ fn main() {
         panic!("Fatal error! Unable to initialize Graphic Interface")
     }
 
-    let glade_src = include_str!("GUI.glade");
-
     let builder = Builder::new();
-    builder.add_from_string(glade_src).unwrap();
+    builder.add_from_string(GLADE_SRC).unwrap();
 
     let window: ApplicationWindow = builder.get_object("main").unwrap();
 
@@ -65,25 +67,12 @@ fn main() {
 
     /* Add light: I could create the dialog in a separate function and destroy it */
     let tmp_button: ToolButton = builder.get_object("add_light_btn").unwrap();
-    let tmp_dialog: Dialog = builder.get_object("add_light_dialog").unwrap();
-    let tmp_d:Dialog = tmp_dialog.clone();
+    let u2 = u.clone();
     tmp_button.connect_clicked(move |_| {
-        tmp_d.run();
-        tmp_d.hide();
-    });
-    let tmp_d = tmp_dialog.clone();
-    builder.get_object::<Button>("add_light_cancel").unwrap().connect_clicked(move |_| {
-        tmp_d.hide();
+        add_light(u2.clone());
     });
 
-    let first_ch_adj: Adjustment = builder.get_object("adjustment1").unwrap();
-    let num_of_chs: Adjustment = builder.get_object("adjustment2").unwrap();
-    let name: Entry = builder.get_object("light_name").unwrap();
-    let u2 = u.clone();
-    builder.get_object::<Button>("add_light_ok").unwrap().connect_clicked(move |_| {
-        add_light(name.clone(), first_ch_adj.clone(), num_of_chs.clone(), u2.clone());
-        tmp_dialog.hide();
-    });
+    
     //after the first time the button gets broken!
 
     let tmp_menuitem: MenuItem = builder.get_object("quit_menuitem").unwrap();
@@ -115,9 +104,31 @@ fn main() {
     
 }
 
-fn add_light(name: Entry, first_channel: Adjustment, number_of_channels: Adjustment, universe: Rc<RefCell<Universe>>){
-    let name = name.get_text().unwrap();
-    let first_channel = first_channel.get_value() as u16;
-    let number_of_channels = number_of_channels.get_value() as u16;
-    universe.borrow_mut().add_light(name, first_channel, number_of_channels);
+fn add_light(universe: Rc<RefCell<Universe>>){
+
+    let builder = Builder::new();
+    builder.add_from_string(ADD_LIGHT_DIALOG_SRC).unwrap();
+
+    let add_dialog: Dialog = builder.get_object("add_light_dialog").unwrap();
+
+    let tmp_d = add_dialog.clone();
+    add_dialog.connect_close(move |_| {
+        tmp_d.destroy();
+    });
+    let tmp_d = add_dialog.clone();
+    builder.get_object::<Button>("add_light_cancel").unwrap().connect_clicked(move |_| {
+        tmp_d.destroy();
+    });
+
+    let first_ch_adj: Adjustment = builder.get_object("adjustment1").unwrap();
+    let num_of_chs: Adjustment = builder.get_object("adjustment2").unwrap();
+    let name: Entry = builder.get_object("light_name").unwrap();
+    builder.get_object::<Button>("add_light_ok").unwrap().connect_clicked(move |_| {
+        let name = name.get_text().unwrap();
+        let first_channel = first_ch_adj.get_value() as u16;
+        let number_of_channels = num_of_chs.get_value() as u16;
+        universe.borrow_mut().add_light(name, first_channel, number_of_channels);
+    });
+
+    add_dialog.run();
 }
