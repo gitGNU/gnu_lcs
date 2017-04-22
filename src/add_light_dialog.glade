@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.18.3 
+<!-- Generated with glade 3.20.0 
 
 Copyright (C) Gianmarco Garrisi
 
@@ -41,7 +41,7 @@ Author: Gianmarco Garrisi
   </object>
   <object class="GtkDialog" id="add_light_dialog">
     <property name="can_focus">False</property>
-    <property name="type">popup</property>
+    <property name="title" translatable="yes">Add Light</property>
     <property name="window_position">center-on-parent</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
@@ -128,7 +128,9 @@ Author: Gianmarco Garrisi
               <object class="GtkSpinButton" id="spinbutton1">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="input_purpose">number</property>
                 <property name="adjustment">adjustment1</property>
+                <property name="value">1</property>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -150,7 +152,9 @@ Author: Gianmarco Garrisi
               <object class="GtkSpinButton" id="spinbutton2">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="input_purpose">number</property>
                 <property name="adjustment">adjustment2</property>
+                <property name="value">1</property>
               </object>
               <packing>
                 <property name="left_attach">1</property>

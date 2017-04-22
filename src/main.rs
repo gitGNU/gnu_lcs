@@ -36,7 +36,7 @@ fn main() {
 
     
     let u = Rc::new(RefCell::new(Universe::new()));
-    
+    let fullscreen = false;
     //let app;
     //if let ok(tmp) = Application::new(None::<&str>, gio::APPLICATION_FLAGS_NONE) {
     //    app = tmp;
@@ -68,8 +68,9 @@ fn main() {
     /* Add light: I could create the dialog in a separate function and destroy it */
     let tmp_button: ToolButton = builder.get_object("add_light_btn").unwrap();
     let u2 = u.clone();
+    let w2 = window.clone();
     tmp_button.connect_clicked(move |_| {
-        add_light(u2.clone());
+        add_light(u2.clone(), &w2);
     });
 
     
@@ -104,13 +105,16 @@ fn main() {
     
 }
 
-fn add_light(universe: Rc<RefCell<Universe>>){
+fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
 
     let builder = Builder::new();
     builder.add_from_string(ADD_LIGHT_DIALOG_SRC).unwrap();
 
     let add_dialog: Dialog = builder.get_object("add_light_dialog").unwrap();
 
+    //add transient parent
+    add_dialog.set_transient_for(Some(main_window));
+    
     let tmp_d = add_dialog.clone();
     add_dialog.connect_close(move |_| {
         tmp_d.destroy();
@@ -120,6 +124,7 @@ fn add_light(universe: Rc<RefCell<Universe>>){
         tmp_d.destroy();
     });
 
+    let tmp_d = add_dialog.clone();
     let first_ch_adj: Adjustment = builder.get_object("adjustment1").unwrap();
     let num_of_chs: Adjustment = builder.get_object("adjustment2").unwrap();
     let name: Entry = builder.get_object("light_name").unwrap();
@@ -128,6 +133,19 @@ fn add_light(universe: Rc<RefCell<Universe>>){
         let first_channel = first_ch_adj.get_value() as u16;
         let number_of_channels = num_of_chs.get_value() as u16;
         universe.borrow_mut().add_light(name, first_channel, number_of_channels);
+        //hide window
+        tmp_d.hide();
+        //clear window
+        let v = tmp_d.get_children();
+        v[0].destroy();
+        //draw next phase
+        let g = grid::new();
+        for i in (0..number_of_channels){
+            
+        }
+        tmp_d.add(g);
+        //show window
+        tmp_d.show();
     });
 
     add_dialog.run();
