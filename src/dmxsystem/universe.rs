@@ -44,10 +44,6 @@ pub struct Universe {
     dimmers: HashMap<String, Dimmer>,
     updater: Option<UpThread>,
 }
-enum Msg {
-    Ok,
-    Stop
-}
 pub struct Transition(JoinHandle<()>, Arc<AtomicBool>);
 
 impl Universe{

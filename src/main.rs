@@ -17,14 +17,17 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 extern crate lcs;
 extern crate gtk;
+extern crate gdk;
 
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use gtk::prelude::*;
-use gtk::{ToolButton, SpinButton, Button, Dialog, Window, Box};
-use gtk::{Builder, ApplicationWindow, MenuItem};
-use gtk::{Label, Entry, ComboBoxText, Orientation, Statusbar, Adjustment};
+use gtk::{ToolButton, Button, Dialog, Box};
+use gtk::{Builder, ApplicationWindow, MenuItem, Grid, ButtonBox};
+use gtk::{Entry, ComboBoxText, Orientation, Statusbar, Adjustment};
+
+use gdk::enums::key;
 
 use lcs::dmxsystem::universe::Universe;
 
@@ -36,7 +39,7 @@ fn main() {
 
     
     let u = Rc::new(RefCell::new(Universe::new()));
-    let fullscreen = false;
+    let fullscreen = Rc::new(Cell::new(false));
     //let app;
     //if let ok(tmp) = Application::new(None::<&str>, gio::APPLICATION_FLAGS_NONE) {
     //    app = tmp;
@@ -92,6 +95,19 @@ fn main() {
         gtk::main_quit();
         Inhibit(false)
     });
+    let w = window.clone();
+    window.connect_key_press_event(move |_,key| {
+        if key.get_keyval() == key::F11 {
+            if fullscreen.get() {
+                fullscreen.set(false);
+                w.unfullscreen();
+            } else {
+                fullscreen.set(true);
+                w.fullscreen();
+            }
+        }
+        Inhibit(false)
+    });
     window.show_all();
     tmp_dialog.run();
     tmp_dialog.hide();
@@ -123,6 +139,11 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
     builder.get_object::<Button>("add_light_cancel").unwrap().connect_clicked(move |_| {
         tmp_d.destroy();
     });
+    let tmp_d = add_dialog.clone();
+    add_dialog.connect_delete_event(move |_,_|{
+        tmp_d.destroy();
+        Inhibit(false)
+    });
 
     let tmp_d = add_dialog.clone();
     let first_ch_adj: Adjustment = builder.get_object("adjustment1").unwrap();
@@ -134,18 +155,42 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         let number_of_channels = num_of_chs.get_value() as u16;
         universe.borrow_mut().add_light(name, first_channel, number_of_channels);
         //hide window
-        tmp_d.hide();
+        //tmp_d.hide();
         //clear window
-        let v = tmp_d.get_children();
-        v[0].destroy();
+        let childs = tmp_d.get_children();
+        tmp_d.remove(&childs[0]);
+        childs[0].destroy();
         //draw next phase
-        let g = grid::new();
-        for i in (0..number_of_channels){
-            
+        let mut names_decorations: Vec<(Entry, ComboBoxText)> = Vec::with_capacity(number_of_channels as usize);
+        let g = Grid::new();
+        let b = Box::new(Orientation::Vertical, 10);
+        let butt_box = ButtonBox::new(Orientation::Horizontal);
+        let ok_button = Button::new_from_stock("GTK_STOCK_OK");
+        let cancel_button = Button::new_from_stock("GTK_STOCK_CANCEL");
+        {
+            let tmp_d = tmp_d.clone();
+            cancel_button.connect_clicked(move |_| {tmp_d.destroy()});
         }
-        tmp_d.add(g);
+        butt_box.add(&ok_button);
+        butt_box.add(&cancel_button);
+        for i in 0..number_of_channels as i32{
+            let ch_name = Entry::new();
+            ch_name.set_text(format!("Channel {}", i+1).as_str());
+            g.attach(&ch_name,    0, i, 1, 1);
+            let decoration = ComboBoxText::new();
+            decoration.append_text("Dimmer coarse");
+            decoration.append_text("Dimmer fine");
+            decoration.append_text("Red");
+            decoration.append_text("Green");
+            decoration.append_text("Blue");
+            g.attach(&decoration, 1, i, 1, 1);
+            names_decorations.push((ch_name, decoration));
+        }
+        b.add(&g);
+        b.add(&butt_box);
+        tmp_d.add(&b);
         //show window
-        tmp_d.show();
+        //tmp_d.show();
     });
 
     add_dialog.run();
