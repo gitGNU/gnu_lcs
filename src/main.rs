@@ -157,22 +157,23 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         //hide window
         //tmp_d.hide();
         //clear window
-        let childs = tmp_d.get_children();
-        tmp_d.remove(&childs[0]);
-        childs[0].destroy();
+        if let Some(ref child) = tmp_d.get_child(){
+            tmp_d.remove(child);
+            child.destroy();
+        }
         //draw next phase
         let mut names_decorations: Vec<(Entry, ComboBoxText)> = Vec::with_capacity(number_of_channels as usize);
         let g = Grid::new();
         let b = Box::new(Orientation::Vertical, 10);
         let butt_box = ButtonBox::new(Orientation::Horizontal);
-        let ok_button = Button::new_from_stock("GTK_STOCK_OK");
-        let cancel_button = Button::new_from_stock("GTK_STOCK_CANCEL");
+        let ok_button = Button::new_from_stock("O_K");
+        let cancel_button = Button::new_from_stock("C_ANCEL");
         {
             let tmp_d = tmp_d.clone();
             cancel_button.connect_clicked(move |_| {tmp_d.destroy()});
         }
-        butt_box.add(&ok_button);
         butt_box.add(&cancel_button);
+        butt_box.add(&ok_button);
         for i in 0..number_of_channels as i32{
             let ch_name = Entry::new();
             ch_name.set_text(format!("Channel {}", i+1).as_str());
@@ -190,7 +191,7 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         b.add(&butt_box);
         tmp_d.add(&b);
         //show window
-        //tmp_d.show();
+        tmp_d.show_all();
     });
 
     add_dialog.run();
