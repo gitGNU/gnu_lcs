@@ -17,6 +17,7 @@ along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
 extern crate lcs;
 extern crate gtk;
+extern crate gtk_sys;
 extern crate gdk;
 
 use std::rc::Rc;
@@ -166,14 +167,15 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         let g = Grid::new();
         let b = Box::new(Orientation::Vertical, 10);
         let butt_box = ButtonBox::new(Orientation::Horizontal);
-        let ok_button = Button::new_from_stock("O_K");
-        let cancel_button = Button::new_from_stock("C_ANCEL");
+        let ok_button = Button::new_from_stock(gtk_sys::GTK_STOCK_OK);
+        let cancel_button = Button::new_from_stock(gtk_sys::GTK_STOCK_CANCEL);
         {
             let tmp_d = tmp_d.clone();
             cancel_button.connect_clicked(move |_| {tmp_d.destroy()});
         }
         butt_box.add(&cancel_button);
         butt_box.add(&ok_button);
+        butt_box.set_layout(gtk::ButtonBoxStyle::End);
         for i in 0..number_of_channels as i32{
             let ch_name = Entry::new();
             ch_name.set_text(format!("Channel {}", i+1).as_str());
@@ -187,9 +189,19 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
             g.attach(&decoration, 1, i, 1, 1);
             names_decorations.push((ch_name, decoration));
         }
-        b.add(&g);
+        {
+            let tmp_d = tmp_d.clone();
+            ok_button.connect_clicked(move |_| {
+                tmp_d.destroy()
+            });
+        }
+        let vp = gtk::Viewport::new(None, None);
+        vp.add(&g);
+        let sw = gtk::ScrolledWindow::new(None, None);
+        b.add(&vp);
         b.add(&butt_box);
-        tmp_d.add(&b);
+        sw.add(&b);
+        tmp_d.add(&sw);
         //show window
         tmp_d.show_all();
     });
