@@ -26,7 +26,7 @@ use std::cell::{Cell, RefCell};
 use gtk::prelude::*;
 use gtk::{ToolButton, Button, Dialog, Box};
 use gtk::{Builder, ApplicationWindow, MenuItem, Grid, ButtonBox};
-use gtk::{Entry, ComboBoxText, Orientation, Statusbar, Adjustment};
+use gtk::{Entry, Label, ComboBoxText, Orientation, Statusbar, Adjustment};
 
 use gdk::enums::key;
 
@@ -56,6 +56,8 @@ fn main() {
     builder.add_from_string(GLADE_SRC).unwrap();
 
     let window: ApplicationWindow = builder.get_object("main").unwrap();
+    /* Status bar*/
+    let stat: Statusbar = builder.get_object("stat").unwrap();
 
     /* About dialog */
     let tmp_menuitem: MenuItem = builder.get_object("about_menu").unwrap();
@@ -73,8 +75,9 @@ fn main() {
     let tmp_button: ToolButton = builder.get_object("add_light_btn").unwrap();
     let u2 = u.clone();
     let w2 = window.clone();
+    let s2 = stat.clone();
     tmp_button.connect_clicked(move |_| {
-        add_light(u2.clone(), &w2);
+        add_light(u2.clone(), &w2, s2.clone());
     });
 
     
@@ -113,7 +116,6 @@ fn main() {
     tmp_dialog.run();
     tmp_dialog.hide();
 
-    let stat: Statusbar = builder.get_object("stat").unwrap();
     let contid = stat.get_context_id("Ready");
     stat.push(contid, "Ready");
     gtk::main();
@@ -122,7 +124,7 @@ fn main() {
     
 }
 
-fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
+fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow, status_bar: Statusbar){
 
     let builder = Builder::new();
     builder.add_from_string(ADD_LIGHT_DIALOG_SRC).unwrap();
@@ -154,7 +156,6 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         let name = name.get_text().unwrap();
         let first_channel = first_ch_adj.get_value() as u16;
         let number_of_channels = num_of_chs.get_value() as u16;
-        universe.borrow_mut().add_light(name, first_channel, number_of_channels);
         //hide window
         //tmp_d.hide();
         //clear window
@@ -163,7 +164,7 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
             child.destroy();
         }
         //draw next phase
-        let mut names_decorations: Vec<(Entry, ComboBoxText)> = Vec::with_capacity(number_of_channels as usize);
+        let mut decorations = Vec::with_capacity(number_of_channels as usize);
         let g = Grid::new();
         let b = Box::new(Orientation::Vertical, 10);
         let butt_box = ButtonBox::new(Orientation::Horizontal);
@@ -177,8 +178,7 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         butt_box.add(&ok_button);
         butt_box.set_layout(gtk::ButtonBoxStyle::End);
         for i in 0..number_of_channels as i32{
-            let ch_name = Entry::new();
-            ch_name.set_text(format!("Channel {}", i+1).as_str());
+            let ch_name = Label::new(Some(format!("Channel {}", i+1).as_str()));
             g.attach(&ch_name,    0, i, 1, 1);
             let decoration = ComboBoxText::new();
             decoration.append_text("Dimmer coarse");
@@ -187,11 +187,14 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
             decoration.append_text("Green");
             decoration.append_text("Blue");
             g.attach(&decoration, 1, i, 1, 1);
-            names_decorations.push((ch_name, decoration));
+            decorations.push(decoration);
         }
         {
             let tmp_d = tmp_d.clone();
             ok_button.connect_clicked(move |_| {
+//                for decoration in decorations {
+                    
+  //              }
                 tmp_d.destroy()
             });
         }
@@ -204,6 +207,10 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow){
         tmp_d.add(&sw);
         //show window
         tmp_d.show_all();
+        tmp_d.run();
+        let l = universe.borrow_mut().add_light(name, first_channel, number_of_channels);
+        let contid = status_bar.get_context_id("Add light");
+        status_bar.push(contid, format!("Light \"{}\" added", l.get_name()).as_str());
     });
 
     add_dialog.run();

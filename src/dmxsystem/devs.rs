@@ -52,6 +52,10 @@ impl<'a> SimpleLight{
         self.needs_update.store(true, Ordering::Relaxed);
     }
 
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn get_ch(&self, i:u16) -> Arc<Mutex<Channel>>{
         self.channels.index(i as usize).clone()
     }
