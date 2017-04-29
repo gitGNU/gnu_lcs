@@ -82,7 +82,7 @@ impl Universe{
 
     pub fn add_light(&mut self, name: String, first_ch: u16, number_of_channels: u16) -> Arc<SimpleLight>{
         let new_light = Arc::new(SimpleLight::new(name.clone(), first_ch, number_of_channels));
-        self.lights.insert(name, new_light.clone());
+        self.lights.entry(name).or_insert(new_light.clone());
         new_light
     }
     pub fn add_dimmer(&mut self, name: String, dimmer_ch: u16){

@@ -15,6 +15,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with LCS.  If not, see <http://www.gnu.org/licenses/>. */
 
+//! This module contains the utilities to set up and control
+//! an helper thread that sends to the DMX line driver the list
+//! of chnnels that changed their values and the new value.
+//!
+//! TODO: This module should be decoupled with the comunication protocol
+//! so that one can change the DMX controller and still use the program
+
 use std::sync::{Arc, Mutex, Condvar};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;

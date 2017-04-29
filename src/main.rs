@@ -189,12 +189,19 @@ fn add_light(universe: Rc<RefCell<Universe>>, main_window: &ApplicationWindow, s
             g.attach(&decoration, 1, i, 1, 1);
             decorations.push(decoration);
         }
+        let decorations = RefCell::new(decorations);
         {
             let tmp_d = tmp_d.clone();
+            //let name = name.clone();
             ok_button.connect_clicked(move |_| {
-//                for decoration in decorations {
-                    
-  //              }
+                for (i, decoration) in decorations.into_inner().into_iter().enumerate() {
+                    if let Some(string) = decoration.get_active_text() {
+                        match string.as_str() {
+                            "Dimmer coarse" => universe.borrow_mut().add_dimmer(name, i as u16),
+                            &_ => {}
+                        }
+                    }
+                }
                 tmp_d.destroy()
             });
         }
